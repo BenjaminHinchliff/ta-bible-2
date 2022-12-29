@@ -1,0 +1,6 @@
+# Clangd files
+.cache/
+compile_commands.json
+
+# Build files
+build/
