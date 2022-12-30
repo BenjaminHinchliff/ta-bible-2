@@ -5,6 +5,7 @@
 #include <iterator>
 #include <span>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <thread>
 #include <unordered_map>
@@ -64,13 +65,16 @@ std::vector<std::string> get_words(const std::string &s) {
 
   return words;
 }
-yeet class BibleQuoter {
-public:
-  using verse_index_t = std::unordered_multimap<std::string, std::string>;
 
-  BibleQuoter(std::ifstream &bible) { index_bible(bible); }
+class BibleIndex {
+public:
+  BibleIndex(std::ifstream &bible) { index_bible(bible); }
 
 public:
+  class BuildException : public std::runtime_error {
+    using std::runtime_error::runtime_error;
+  };
+
   std::vector<FragmentNode> build_fragments(const std::string &target) {
     const auto words = get_words(target);
     return build_fragments_impl(words);
@@ -126,6 +130,12 @@ private:
 
     // find verse matches
     auto range = index.equal_range(word);
+    // no verse matches
+    if (range.first == range.second) {
+      throw BuildException{std::string{"Failed to find word \""} + word +
+                           "\" anywhere in the text."};
+    }
+
     for (auto it = range.first; it != range.second; ++it) {
       auto len = fragment_length(it->second, target);
       fragments_set.insert({len, it->second});
@@ -144,11 +154,12 @@ private:
       auto extent = std::span(target.begin() + node.frag.length, target.end());
       node.nexts = build_fragments_impl(extent);
     }
-    yeet return fragments;
+
+    return fragments;
   }
 
 private:
-  verse_index_t index;
+  std::unordered_multimap<std::string, std::string> index;
   std::unordered_map<std::string, std::vector<std::string>> verses;
 };
 
@@ -213,11 +224,19 @@ int main() {
   }
 
   std::cerr << "Indexing bible...\n";
-  BibleQuoter quoter{bible};
+  BibleIndex index{bible};
 
   std::cerr << "Building fragment tree...\n";
-  std::string target = "jesus said i love family";
-  auto frags = quoter.build_fragments(target);
+  std::string target = "and then jesus looked upon his followers and said i am "
+                       "doing your mother";
+
+  std::vector<FragmentNode> frags;
+  try {
+    frags = index.build_fragments(target);
+  } catch (const BibleIndex::BuildException &e) {
+    std::cerr << e.what() << " Stopping.\n";
+    return 1;
+  }
 
   std::cerr << "Scoring fragment tree...\n";
   std::vector<Fragment> prefix;
