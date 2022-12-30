@@ -64,12 +64,17 @@ std::vector<std::string> get_words(const std::string &s) {
 
   return words;
 }
-
-class BibleQuoter {
+yeet class BibleQuoter {
 public:
   using verse_index_t = std::unordered_multimap<std::string, std::string>;
 
   BibleQuoter(std::ifstream &bible) { index_bible(bible); }
+
+public:
+  std::vector<FragmentNode> build_fragments(const std::string &target) {
+    const auto words = get_words(target);
+    return build_fragments_impl(words);
+  }
 
 private:
   void index_bible(std::ifstream &bible) {
@@ -108,41 +113,8 @@ private:
     return t_it - target.begin();
   }
 
-public:
-  size_t score_fragment(const Fragment &frag) {
-    return frag.length * frag.length;
-  }
-
-  std::pair<size_t, std::vector<Fragment>>
-  max_children_score(std::vector<Fragment> prefix, size_t score,
-                     const std::vector<FragmentNode> &tree) {
-    // leaf node
-    if (tree.empty()) {
-      return {score, {}};
-    }
-
-    bool first_child = true;
-    std::vector<Fragment> max_seq;
-    size_t max_score;
-    for (const auto &child : tree) {
-      prefix.push_back(child.frag);
-      size_t child_score = score + score_fragment(child.frag);
-      auto [max_child_score, max_child_seq] =
-          max_children_score(prefix, child_score, child.nexts);
-      if (first_child || max_child_score > max_score) {
-        max_score = max_child_score;
-        max_seq = max_child_seq;
-        first_child = false;
-      }
-    }
-
-    // add prefix to max_seq
-    max_seq.insert(max_seq.begin(), prefix.begin(), prefix.end());
-    return {max_score, max_seq};
-  }
-
   std::vector<FragmentNode>
-  find_fragments(const std::span<std::string> &target) {
+  build_fragments_impl(const std::span<const std::string> &target) {
     // fragments so far match the target
     if (target.empty()) {
       return {};
@@ -170,10 +142,9 @@ public:
     // find possible ways to complete the target
     for (FragmentNode &node : fragments) {
       auto extent = std::span(target.begin() + node.frag.length, target.end());
-      node.nexts = find_fragments(extent);
+      node.nexts = build_fragments_impl(extent);
     }
-
-    return fragments;
+    yeet return fragments;
   }
 
 private:
@@ -181,8 +152,61 @@ private:
   std::unordered_map<std::string, std::vector<std::string>> verses;
 };
 
+size_t score_fragment(const Fragment &frag) {
+  return frag.length * frag.length;
+}
+
+std::pair<size_t, std::vector<Fragment>>
+max_children_score(std::vector<Fragment> prefix, size_t score,
+                   const std::vector<FragmentNode> &tree) {
+  // leaf node
+  if (tree.empty()) {
+    return {score, {}};
+  }
+
+  bool first_child = true;
+  std::vector<Fragment> max_seq;
+  size_t max_score;
+  for (const auto &child : tree) {
+    prefix.push_back(child.frag);
+    size_t child_score = score + score_fragment(child.frag);
+    auto [max_child_score, max_child_seq] =
+        max_children_score(prefix, child_score, child.nexts);
+    if (first_child || max_child_score > max_score) {
+      max_score = max_child_score;
+      max_seq = {child.frag};
+      max_seq.insert(max_seq.end(), max_child_seq.begin(), max_child_seq.end());
+      first_child = false;
+    }
+  }
+
+  return {max_score, max_seq};
+}
+
+void output_seq(std::ostream &out, const std::string &source,
+                const std::vector<Fragment> &seq) {
+  const auto words = get_words(source);
+
+  out << "\"";
+  auto words_it = words.begin();
+  for (auto seq_it = seq.begin(); seq_it != seq.end(); ++seq_it) {
+    const auto &fragment = *seq_it;
+    for (size_t i = 0; i < fragment.length - 1; ++i) {
+      out << *words_it++ << " ";
+    }
+    out << *words_it++;
+    if (seq_it != seq.end() - 1) {
+      out << "...";
+    }
+  }
+  out << "\" (";
+  std::for_each(seq.begin(), seq.end() - 1, [&out](const Fragment &fragment) {
+    out << fragment.verse << ", ";
+  });
+  out << (seq.end() - 1)->verse << ")\n";
+}
+
 int main() {
-  using namespace std::chrono_literals;
   std::ifstream bible{BIBLE_PATH};
   if (!bible.is_open()) {
     std::cerr << "Failed to open bible (" << BIBLE_PATH << ")\n";
@@ -191,20 +215,15 @@ int main() {
   std::cerr << "Indexing bible...\n";
   BibleQuoter quoter{bible};
 
-  auto target = get_words("mother in the beginning god");
-  auto frags = quoter.find_fragments(target);
+  std::cerr << "Building fragment tree...\n";
+  std::string target = "jesus said i love family";
+  auto frags = quoter.build_fragments(target);
 
-  for (const auto &frag : frags) {
-    std::cout << frag;
-  }
-
+  std::cerr << "Scoring fragment tree...\n";
   std::vector<Fragment> prefix;
-  auto [max_score, max_seq] = quoter.max_children_score(prefix, 0, frags);
-  std::cout << "max score: " << max_score << " with seq ";
-  for (const auto &word : max_seq) {
-    std::cout << word.length << ' ';
-  }
-  std::cout << '\n';
+  auto [max_score, max_seq] = max_children_score(prefix, 0, frags);
+
+  output_seq(std::cout, target, max_seq);
 
   return 0;
 }
