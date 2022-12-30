@@ -6,9 +6,19 @@ endif()
 
 project(ta-bible-2 CXX)
 
-add_executable(ta-bible-2 "bible.cpp")
+set(INC_FILES
+    "bible.hpp")
 
-target_include_directories(ta-bible-2 PRIVATE "${PROJECT_SOURCE_DIR}")
+set(SRC_FILES
+    "bible.cpp")
+
+if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Emscripten")
+    set(SRC_FILES ${SRC_FILES} "main.cpp")
+endif()
+
+add_executable(ta-bible-2 ${SRC_FILES} ${INC_FILES})
+
+target_include_directories(ta-bible-2 PRIVATE ${PROJECT_SOURCE_DIR})
 
 target_compile_features(ta-bible-2 PRIVATE cxx_std_17)
 

@@ -22,14 +22,9 @@ private:
 
 class BibleIndex {
 public:
-  BibleIndex(std::ifstream &bible);
+  BibleIndex();
 
-  std::vector<FragmentNode> build_fragments(const std::string &target);
-
-public:
-  class BuildException : public std::runtime_error {
-    using std::runtime_error::runtime_error;
-  };
+  std::vector<FragmentNode> build_fragments(const std::string &target) const;
 
 private:
   void index_bible(std::ifstream &bible);
@@ -39,11 +34,11 @@ private:
   // TODO: these types are... so ugly - maybe find a better way to type this?
   size_t fragment_length(const std::string &verse_num,
                          const std::vector<std::string> &target,
-                         const vec_str_iter_t &start);
+                         const vec_str_iter_t &start) const;
 
   std::vector<FragmentNode>
   build_fragments_impl(const std::vector<std::string> &target,
-                       const vec_str_iter_t &start);
+                       const vec_str_iter_t &start) const;
 
 private:
   std::unordered_multimap<std::string, std::string> index;
@@ -57,4 +52,4 @@ max_children_score(std::vector<Fragment> prefix, size_t score,
 void output_seq(std::ostream &out, const std::string &source,
                 const std::vector<Fragment> &seq);
 
-std::ifstream get_bible_handle();
+std::string build_quote(const BibleIndex &index, const std::string &target);

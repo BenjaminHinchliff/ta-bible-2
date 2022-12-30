@@ -22,20 +22,12 @@ int main(int argc, char *argv[]) {
   try {
     target = parse_target(argc, argv);
 
-    std::ifstream bible = get_bible_handle();
-
     std::cerr << "Indexing bible...\n";
-    BibleIndex index{bible};
+    BibleIndex index{};
 
-    std::cerr << "Building fragment tree...\n";
+    std::cerr << "Building quote...\n";
+    std::cout << build_quote(index, target) << '\n';
 
-    std::vector<FragmentNode> frags = index.build_fragments(target);
-
-    std::cerr << "Scoring fragment tree...\n";
-    std::vector<Fragment> prefix;
-    auto [max_score, max_seq] = max_children_score(prefix, 0, frags);
-
-    output_seq(std::cout, target, max_seq);
   } catch (const std::runtime_error &e) {
     std::cerr << e.what() << " Stopping.\n";
     return 1;

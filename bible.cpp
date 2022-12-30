@@ -67,10 +67,22 @@ std::vector<std::string> get_words(const std::string &s) {
   return words;
 }
 
-BibleIndex::BibleIndex(std::ifstream &bible) { index_bible(bible); }
+std::ifstream get_bible_handle() {
+  std::ifstream handle{BIBLE_PATH};
+  if (!handle.is_open()) {
+    throw std::runtime_error("Failed to open bible.");
+  }
+
+  return handle;
+}
+
+BibleIndex::BibleIndex() {
+  std::ifstream bible = get_bible_handle();
+  index_bible(bible);
+}
 
 std::vector<FragmentNode>
-BibleIndex::build_fragments(const std::string &target) {
+BibleIndex::build_fragments(const std::string &target) const {
   auto words = get_words(target);
   std::transform(
       words.begin(), words.end(), words.begin(),
@@ -106,7 +118,7 @@ void BibleIndex::index_bible(std::ifstream &bible) {
 
 size_t BibleIndex::fragment_length(const std::string &verse_num,
                                    const std::vector<std::string> &target,
-                                   const vec_str_iter_t &start) {
+                                   const vec_str_iter_t &start) const {
   const auto verse = verses.at(verse_num);
 
   auto t_it = start;
@@ -121,7 +133,7 @@ size_t BibleIndex::fragment_length(const std::string &verse_num,
 
 std::vector<FragmentNode>
 BibleIndex::build_fragments_impl(const std::vector<std::string> &target,
-                                 const vec_str_iter_t &start) {
+                                 const vec_str_iter_t &start) const {
   // fragments so far match the target
   if (start >= target.end()) {
     return {};
@@ -135,8 +147,8 @@ BibleIndex::build_fragments_impl(const std::vector<std::string> &target,
   auto range = index.equal_range(word);
   // no verse matches
   if (range.first == range.second) {
-    throw BuildException{std::string{"Failed to find word \""} + word +
-                         "\" anywhere in the text."};
+    throw std::runtime_error{std::string{"Failed to find word \""} + word +
+                             "\" anywhere in the text."};
   }
 
   for (auto it = range.first; it != range.second; ++it) {
@@ -207,14 +219,23 @@ void output_seq(std::ostream &out, const std::string &source,
   std::for_each(seq.begin(), seq.end() - 1, [&out](const Fragment &fragment) {
     out << fragment.verse << ", ";
   });
-  out << (seq.end() - 1)->verse << ")\n";
+  out << (seq.end() - 1)->verse << ")";
 }
 
-std::ifstream get_bible_handle() {
-  std::ifstream handle{BIBLE_PATH};
-  if (!handle.is_open()) {
-    throw std::runtime_error("Failed to open bible.");
-  }
+std::string build_quote(const BibleIndex &index, const std::string &target) {
+  std::vector<FragmentNode> frags = index.build_fragments(target);
 
-  return handle;
+  std::vector<Fragment> prefix;
+  auto [max_score, max_seq] = max_children_score(prefix, 0, frags);
+
+  std::stringstream out;
+  output_seq(out, target, max_seq);
+  return out.str();
 }
+
+#ifdef EMSCRIPTEN
+EMSCRIPTEN_BINDINGS(module) {
+  emscripten::class_<BibleIndex>("BibleIndex").constructor();
+  emscripten::function("build_quote", &build_quote);
+}
+#endif

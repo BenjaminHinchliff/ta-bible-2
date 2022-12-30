@@ -11,7 +11,9 @@
   <script>
     var Module = {
       onRuntimeInitialized: function () {
-        console.log('return code: ' + Module.run("fish"));
+        console.log("building index... (this might take a while)");
+        const index = new Module.BibleIndex();
+        console.log(Module.build_quote(index, "fish"))
       }
     };
   </script>
