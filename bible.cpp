@@ -1,3 +1,5 @@
+#include "bible.hpp"
+
 #include <algorithm>
 #include <cassert>
 #include <cctype>
@@ -9,35 +11,27 @@
 #include <unordered_map>
 #include <vector>
 
+#ifdef EMSCRIPTEN
+#include <emscripten/bind.h>
+#endif
+
 const char *BIBLE_PATH = "kjv.txt";
 
-struct Fragment {
-  size_t length;
-  std::string verse;
-};
-
-struct FragmentNode {
-  Fragment frag;
-  std::vector<FragmentNode> nexts;
-
-  friend std::ostream &operator<<(std::ostream &out, const FragmentNode &node);
-
-private:
-  static std::ostream &print_helper(std::ostream &out, const FragmentNode &node,
-                                    size_t depth = 0) {
-    for (size_t i = 0; i < depth; ++i) {
-      out << '\t';
-    }
-
-    out << node.frag.length << " (" << node.frag.verse << ")\n";
-
-    for (const auto &next : node.nexts) {
-      print_helper(out, next, depth + 1);
-    }
-
-    return out;
+std::ostream &FragmentNode::print_helper(std::ostream &out,
+                                         const FragmentNode &node,
+                                         size_t depth) {
+  for (size_t i = 0; i < depth; ++i) {
+    out << '\t';
   }
-};
+
+  out << node.frag.length << " (" << node.frag.verse << ")\n";
+
+  for (const auto &next : node.nexts) {
+    print_helper(out, next, depth + 1);
+  }
+
+  return out;
+}
 
 std::ostream &operator<<(std::ostream &out, const FragmentNode &node) {
   FragmentNode::print_helper(out, node);
@@ -73,112 +67,97 @@ std::vector<std::string> get_words(const std::string &s) {
   return words;
 }
 
-class BibleIndex {
-public:
-  BibleIndex(std::ifstream &bible) { index_bible(bible); }
+BibleIndex::BibleIndex(std::ifstream &bible) { index_bible(bible); }
 
-public:
-  class BuildException : public std::runtime_error {
-    using std::runtime_error::runtime_error;
-  };
-
-  std::vector<FragmentNode> build_fragments(const std::string &target) {
-    auto words = get_words(target);
-    std::transform(
-        words.begin(), words.end(), words.begin(),
-        [](std::string word) { return string_clean(string_to_lower(word)); });
-    return build_fragments_impl(words, words.begin());
-  }
-
-private:
-  void index_bible(std::ifstream &bible) {
-    std::string line;
-    while (std::getline(bible, line)) {
-      std::stringstream line_ss{line};
-
-      std::string verse;
-      std::getline(line_ss, verse, ' ');
-
-      std::vector<std::string> words;
-
-      std::string word;
-      while (std::getline(line_ss, word, ' ')) {
-        word = string_clean(string_to_lower(word));
-
-        index.insert({word, verse});
-        words.push_back(word);
-      }
-
-      verses.insert({verse, words});
-    }
-  }
-
-  using vec_str_iter_t = std::vector<std::string>::iterator;
-
-  // TODO: these types are... so ugly - maybe find a better way to type this?
-  size_t fragment_length(const std::string &verse_num,
-                         const std::vector<std::string> &target,
-                         const vec_str_iter_t &start) {
-    const auto verse = verses.at(verse_num);
-
-    auto t_it = start;
-    auto v_it = std::find(verse.begin(), verse.end(), *t_it);
-    while (v_it != verse.end() && t_it != target.end() && *v_it == *t_it) {
-      ++v_it;
-      ++t_it;
-    }
-
-    return t_it - start;
-  }
-
-  std::vector<FragmentNode>
-  build_fragments_impl(const std::vector<std::string> &target,
-                       const vec_str_iter_t &start) {
-    // fragments so far match the target
-    if (start >= target.end()) {
-      return {};
-    }
-
-    auto word = *start;
-
-    std::unordered_map<size_t, std::string> fragments_set;
-
-    // find verse matches
-    auto range = index.equal_range(word);
-    // no verse matches
-    if (range.first == range.second) {
-      throw BuildException{std::string{"Failed to find word \""} + word +
-                           "\" anywhere in the text."};
-    }
-
-    for (auto it = range.first; it != range.second; ++it) {
-      auto len = fragment_length(it->second, target, start);
-      fragments_set.insert({len, it->second});
-    }
-
-    std::vector<FragmentNode> fragments;
-    std::transform(fragments_set.begin(), fragments_set.end(),
-                   std::back_inserter(fragments), [](const auto &node) {
-                     auto [length, verse] = node;
-                     return FragmentNode{
-                         .frag = {.length = length, .verse = verse}};
-                   });
-
-    // find possible ways to complete the target
-    for (FragmentNode &node : fragments) {
-      node.nexts = build_fragments_impl(target, start + node.frag.length);
-    }
-
-    return fragments;
-  }
-
-private:
-  std::unordered_multimap<std::string, std::string> index;
-  std::unordered_map<std::string, std::vector<std::string>> verses;
-};
+std::vector<FragmentNode>
+BibleIndex::build_fragments(const std::string &target) {
+  auto words = get_words(target);
+  std::transform(
+      words.begin(), words.end(), words.begin(),
+      [](std::string word) { return string_clean(string_to_lower(word)); });
+  return build_fragments_impl(words, words.begin());
+}
 
 size_t score_fragment(const Fragment &frag) {
   return frag.length * frag.length;
+}
+
+void BibleIndex::index_bible(std::ifstream &bible) {
+  std::string line;
+  while (std::getline(bible, line)) {
+    std::stringstream line_ss{line};
+
+    std::string verse;
+    std::getline(line_ss, verse, ' ');
+
+    std::vector<std::string> words;
+
+    std::string word;
+    while (std::getline(line_ss, word, ' ')) {
+      word = string_clean(string_to_lower(word));
+
+      index.insert({word, verse});
+      words.push_back(word);
+    }
+
+    verses.insert({verse, words});
+  }
+}
+
+size_t BibleIndex::fragment_length(const std::string &verse_num,
+                                   const std::vector<std::string> &target,
+                                   const vec_str_iter_t &start) {
+  const auto verse = verses.at(verse_num);
+
+  auto t_it = start;
+  auto v_it = std::find(verse.begin(), verse.end(), *t_it);
+  while (v_it != verse.end() && t_it != target.end() && *v_it == *t_it) {
+    ++v_it;
+    ++t_it;
+  }
+
+  return t_it - start;
+}
+
+std::vector<FragmentNode>
+BibleIndex::build_fragments_impl(const std::vector<std::string> &target,
+                                 const vec_str_iter_t &start) {
+  // fragments so far match the target
+  if (start >= target.end()) {
+    return {};
+  }
+
+  auto word = *start;
+
+  std::unordered_map<size_t, std::string> fragments_set;
+
+  // find verse matches
+  auto range = index.equal_range(word);
+  // no verse matches
+  if (range.first == range.second) {
+    throw BuildException{std::string{"Failed to find word \""} + word +
+                         "\" anywhere in the text."};
+  }
+
+  for (auto it = range.first; it != range.second; ++it) {
+    auto len = fragment_length(it->second, target, start);
+    fragments_set.insert({len, it->second});
+  }
+
+  std::vector<FragmentNode> fragments;
+  std::transform(fragments_set.begin(), fragments_set.end(),
+                 std::back_inserter(fragments), [](const auto &node) {
+                   auto [length, verse] = node;
+                   return FragmentNode{
+                       .frag = {.length = length, .verse = verse}};
+                 });
+
+  // find possible ways to complete the target
+  for (FragmentNode &node : fragments) {
+    node.nexts = build_fragments_impl(target, start + node.frag.length);
+  }
+
+  return fragments;
 }
 
 std::pair<size_t, std::vector<Fragment>>
@@ -231,52 +210,11 @@ void output_seq(std::ostream &out, const std::string &source,
   out << (seq.end() - 1)->verse << ")\n";
 }
 
-std::string parse_target(int argc, char *argv[]) {
-  using namespace std::string_literals;
-  if (argc <= 1) {
-    throw std::runtime_error("No target string passed.");
+std::ifstream get_bible_handle() {
+  std::ifstream handle{BIBLE_PATH};
+  if (!handle.is_open()) {
+    throw std::runtime_error("Failed to open bible.");
   }
 
-  std::string target = argv[1];
-  for (int i = 2; i < argc; ++i) {
-    target += " "s + argv[i];
-  }
-
-  return target;
-}
-
-int main(int argc, char *argv[]) {
-  std::string target;
-  try {
-    target = parse_target(argc, argv);
-  } catch (const std::runtime_error &e) {
-    std::cerr << e.what() << " Stopping.\n";
-    return 1;
-  }
-
-  std::ifstream bible{BIBLE_PATH};
-  if (!bible.is_open()) {
-    std::cerr << "Failed to open bible (" << BIBLE_PATH << ")\n";
-  }
-
-  std::cerr << "Indexing bible...\n";
-  BibleIndex index{bible};
-
-  std::cerr << "Building fragment tree...\n";
-
-  std::vector<FragmentNode> frags;
-  try {
-    frags = index.build_fragments(target);
-  } catch (const BibleIndex::BuildException &e) {
-    std::cerr << e.what() << " Stopping.\n";
-    return 1;
-  }
-
-  std::cerr << "Scoring fragment tree...\n";
-  std::vector<Fragment> prefix;
-  auto [max_score, max_seq] = max_children_score(prefix, 0, frags);
-
-  output_seq(std::cout, target, max_seq);
-
-  return 0;
+  return handle;
 }
