@@ -8,4 +8,4 @@ project(ta-bible-2 CXX)
 
 add_executable(ta-bible-2 "bible.cpp")
 
-target_compile_features(ta-bible-2 PRIVATE cxx_std_20)
+target_compile_features(ta-bible-2 PRIVATE cxx_std_17)
