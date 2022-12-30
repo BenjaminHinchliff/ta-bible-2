@@ -49,7 +49,16 @@ std::ostream &operator<<(std::ostream &out, const FragmentNode &node) {
 
 std::string string_to_lower(std::string s) {
   std::transform(s.cbegin(), s.cend(), s.begin(),
-                 [](const char c) { return std::tolower(c); });
+                 [](const unsigned char c) { return std::tolower(c); });
+  return s;
+}
+
+// remove all characters save for alphanumeric ones
+std::string string_clean(std::string s) {
+  s.erase(
+      std::remove_if(s.begin(), s.end(),
+                     [](const unsigned char c) { return !std::isalnum(c); }),
+      s.end());
   return s;
 }
 
@@ -76,7 +85,10 @@ public:
   };
 
   std::vector<FragmentNode> build_fragments(const std::string &target) {
-    const auto words = get_words(target);
+    auto words = get_words(target);
+    std::transform(
+        words.begin(), words.end(), words.begin(),
+        [](std::string word) { return string_clean(string_to_lower(word)); });
     return build_fragments_impl(words);
   }
 
@@ -93,7 +105,7 @@ private:
 
       std::string word;
       while (std::getline(line_ss, word, ' ')) {
-        word = string_to_lower(word);
+        word = string_clean(string_to_lower(word));
 
         index.insert({word, verse});
         words.push_back(word);
