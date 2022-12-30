@@ -217,7 +217,29 @@ void output_seq(std::ostream &out, const std::string &source,
   out << (seq.end() - 1)->verse << ")\n";
 }
 
-int main() {
+std::string parse_target(int argc, char *argv[]) {
+  using namespace std::string_literals;
+  if (argc <= 1) {
+    throw std::runtime_error("No target string passed.");
+  }
+
+  std::string target = argv[1];
+  for (int i = 2; i < argc; ++i) {
+    target += " "s + argv[i];
+  }
+
+  return target;
+}
+
+int main(int argc, char *argv[]) {
+  std::string target;
+  try {
+    target = parse_target(argc, argv);
+  } catch (const std::runtime_error &e) {
+    std::cerr << e.what() << " Stopping.\n";
+    return 1;
+  }
+
   std::ifstream bible{BIBLE_PATH};
   if (!bible.is_open()) {
     std::cerr << "Failed to open bible (" << BIBLE_PATH << ")\n";
@@ -227,8 +249,6 @@ int main() {
   BibleIndex index{bible};
 
   std::cerr << "Building fragment tree...\n";
-  std::string target = "and then jesus looked upon his followers and said i am "
-                       "doing your mother";
 
   std::vector<FragmentNode> frags;
   try {
