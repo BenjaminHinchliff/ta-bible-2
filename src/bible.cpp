@@ -247,7 +247,6 @@ std::string get_exception_message(intptr_t exceptionPtr) {
 EMSCRIPTEN_BINDINGS(module) {
   emscripten::class_<BibleIndex>("BibleIndex").constructor();
   emscripten::function("build_quote", &build_quote);
-  emscripten::function("build_quote", &build_quote);
   emscripten::function("get_exception_message", &get_exception_message);
 }
 #endif
