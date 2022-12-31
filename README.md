@@ -2,6 +2,8 @@
 
 A small (not simple) program to generate arbitrary quotes from the bible (King James version) by abusing ellipses.
 
+##### Check out the online deployment [here](https://benjaminhinchliff.github.io/ta-bible-2/)
+
 ```bash
 ❯ ./ta-bible-2 fish were created as the best living creatures
 Indexing bible...
