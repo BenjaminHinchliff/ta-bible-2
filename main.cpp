@@ -4,13 +4,13 @@
 
 std::string parse_target(int argc, char *argv[]) {
   using namespace std::string_literals;
-  if (argc <= 1) {
-    throw std::runtime_error("No target string passed.");
-  }
 
-  std::string target = argv[1];
-  for (int i = 2; i < argc; ++i) {
-    target += " "s + argv[i];
+  std::string target;
+  if (argc > 1) {
+    target = argv[1];
+    for (int i = 2; i < argc; ++i) {
+      target += " "s + argv[i];
+    }
   }
 
   return target;

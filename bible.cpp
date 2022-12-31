@@ -49,7 +49,7 @@ std::string string_to_lower(std::string s) {
 std::string string_clean(std::string s) {
   s.erase(
       std::remove_if(s.begin(), s.end(),
-                     [](const unsigned char c) { return !std::isalnum(c); }),
+                     [](const unsigned char c) { return !std::isalpha(c); }),
       s.end());
   return s;
 }
@@ -108,7 +108,7 @@ void BibleIndex::index_bible(std::ifstream &bible) {
     while (std::getline(line_ss, word, ' ')) {
       word = string_clean(string_to_lower(word));
 
-      index.insert({word, verse});
+      index.insert(word, verse);
       words.push_back(word);
     }
 
@@ -134,6 +134,8 @@ size_t BibleIndex::fragment_length(const std::string &verse_num,
 std::vector<FragmentNode>
 BibleIndex::build_fragments_impl(const std::vector<std::string> &target,
                                  const vec_str_iter_t &start) const {
+  using namespace std::string_literals;
+
   // fragments so far match the target
   if (start >= target.end()) {
     return {};
@@ -144,16 +146,16 @@ BibleIndex::build_fragments_impl(const std::vector<std::string> &target,
   std::unordered_map<size_t, std::string> fragments_set;
 
   // find verse matches
-  auto range = index.equal_range(word);
+  auto range = index.search(word);
   // no verse matches
-  if (range.first == range.second) {
-    throw std::runtime_error{std::string{"Failed to find word \""} + word +
+  if (!range.has_value()) {
+    throw std::runtime_error{"Failed to find word \""s + word +
                              "\" anywhere in the text."};
   }
 
-  for (auto it = range.first; it != range.second; ++it) {
-    auto len = fragment_length(it->second, target, start);
-    fragments_set.insert({len, it->second});
+  for (auto it = range->first; it != range->second; ++it) {
+    auto len = fragment_length(*it, target, start);
+    fragments_set.insert({len, *it});
   }
 
   std::vector<FragmentNode> fragments;
@@ -223,6 +225,10 @@ void output_seq(std::ostream &out, const std::string &source,
 }
 
 std::string build_quote(const BibleIndex &index, const std::string &target) {
+  if (target.empty()) {
+    throw std::runtime_error("No target string passed.");
+  }
+
   std::vector<FragmentNode> frags = index.build_fragments(target);
 
   std::vector<Fragment> prefix;
@@ -234,8 +240,14 @@ std::string build_quote(const BibleIndex &index, const std::string &target) {
 }
 
 #ifdef EMSCRIPTEN
+std::string get_exception_message(intptr_t exceptionPtr) {
+  return std::string(reinterpret_cast<std::exception *>(exceptionPtr)->what());
+}
+
 EMSCRIPTEN_BINDINGS(module) {
   emscripten::class_<BibleIndex>("BibleIndex").constructor();
   emscripten::function("build_quote", &build_quote);
+  emscripten::function("build_quote", &build_quote);
+  emscripten::function("get_exception_message", &get_exception_message);
 }
 #endif

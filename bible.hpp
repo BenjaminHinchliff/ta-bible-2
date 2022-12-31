@@ -1,5 +1,7 @@
 #pragma once
 
+#include "trie.hpp"
+
 #include <fstream>
 #include <unordered_map>
 #include <vector>
@@ -41,7 +43,7 @@ private:
                        const vec_str_iter_t &start) const;
 
 private:
-  std::unordered_multimap<std::string, std::string> index;
+  Trie index;
   std::unordered_map<std::string, std::vector<std::string>> verses;
 };
 

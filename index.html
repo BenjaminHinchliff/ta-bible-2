@@ -24,18 +24,31 @@
     const go = document.getElementById("go");
 
     status.textContent = "Building index... (this will take a while)";
-    go.onclick = () => {
+
+    const indexingHandler = () => {
       status.textContent = "Still Building Index... (sorry)";
     };
+    go.onclick = indexingHandler;
+    target.addEventListener("keydown", ({key}) => {
+      if (key === "Enter") {
+        indexingHandler();
+      }
+    });
 
     const quote_worker = new Worker("quote_worker.js");
     quote_worker.onmessage = ({data: [type, content]}) => {
       if (type === "index-complete") {
         status.textContent = content;
-        go.onclick = () => {
+        quoteHandler = () => {
           status.textContent = "Building quote...";
           quote_worker.postMessage(target.value)
         }
+        go.onclick = quoteHandler;
+        target.addEventListener("keydown", ({key}) => {
+          if (key === "Enter") {
+            quoteHandler();
+          }
+        });
       } else if (type === "status") {
         status.textContent = content;
       } else if (type === "quote") {
