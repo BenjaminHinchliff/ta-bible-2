@@ -4,20 +4,49 @@
 <head>
   <title>Totally Accurate Bible Quotes v2</title>
   <meta charset="UTF-8">
-
+  <style>
+    .error {
+      color: red;
+    }
+  </style>
 </head>
 
 <body>
+  <noscript>
+    <p class="error">This page requires JavaScript & WASM to do anything</p>
+  </noscript>
+  <p id="status">Loading WASM Module...</p>
+  <input id="target" type="text">
+  <button id="go">Go</button>
   <script>
-    var Module = {
-      onRuntimeInitialized: function () {
-        console.log("building index... (this might take a while)");
-        const index = new Module.BibleIndex();
-        console.log(Module.build_quote(index, "fish"))
+    const status = document.getElementById("status");
+    const target = document.getElementById("target");
+    const go = document.getElementById("go");
+
+    status.textContent = "Building index... (this will take a while)";
+    go.onclick = () => {
+      status.textContent = "Still Building Index... (sorry)";
+    };
+
+    const quote_worker = new Worker("quote_worker.js");
+    quote_worker.onmessage = ({data: [type, content]}) => {
+      if (type === "index-complete") {
+        status.textContent = content;
+        go.onclick = () => {
+          status.textContent = "Building quote...";
+          quote_worker.postMessage(target.value)
+        }
+      } else if (type === "status") {
+        status.textContent = content;
+      } else if (type === "quote") {
+        status.textContent = content;
+      } else {
+        console.error("Unknown message from web worker");
       }
     };
+
+
   </script>
-  <script src="ta-bible-2.js"></script>
 </body>
 
 </html>
