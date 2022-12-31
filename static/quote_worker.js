@@ -2,7 +2,6 @@ let index = null;
 
 var Module = {
   onRuntimeInitialized: function() {
-    console.log(Module);
     index = new Module.BibleIndex()
     postMessage(["index-complete", "Index loading completed. Waiting on input."])
   }
