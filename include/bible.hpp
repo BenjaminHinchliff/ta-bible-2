@@ -43,7 +43,7 @@ private:
                        const vec_str_iter_t &start) const;
 
 private:
-  Trie index;
+  VerseTrie index;
   std::unordered_map<std::string, std::vector<std::string>> verses;
 };
 

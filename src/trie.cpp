@@ -1,34 +1,34 @@
 #include "trie.hpp"
 
-TrieNode::TrieNode(char letter, std::optional<verses_t> verses) {
+VerseTrieNode::VerseTrieNode(char letter, std::optional<verses_t> verses) {
   this->letter = letter;
   this->verses = verses;
-  for (size_t i = 0; i < TrieNode::ALPHA_SIZE; i++) {
+  for (size_t i = 0; i < VerseTrieNode::ALPHA_SIZE; i++) {
     children[i] = nullptr;
   }
 }
 
-void Trie::insert(const std::string &key, std::string verse) {
+void VerseTrie::insert(const std::string &key, std::string verse) {
   // don't want to take any ownership of the unique pointer
-  TrieNode *current = &root;
+  VerseTrieNode *current = &root;
   for (char c : key) {
     size_t i = c - 'a';
     assert(i < ALPHA_SIZE && "trie index must be within alpha size");
     auto &child = current->children[i];
     if (!child) {
-      child = std::make_unique<TrieNode>(c);
+      child = std::make_unique<VerseTrieNode>(c);
     }
     current = current->children[i].get();
   }
   if (!current->verses.has_value()) {
-    current->verses = std::make_optional<TrieNode::verses_t>();
+    current->verses = std::make_optional<VerseTrieNode::verses_t>();
   }
   current->verses->insert(verse);
 }
 
-std::optional<std::pair<Trie::verses_it_t, Trie::verses_it_t>>
-Trie::search(const std::string &key) const {
-  const TrieNode *current = &root;
+std::optional<std::pair<VerseTrie::verses_it_t, VerseTrie::verses_it_t>>
+VerseTrie::search(const std::string &key) const {
+  const VerseTrieNode *current = &root;
   for (char c : key) {
     size_t i = c - 'a';
     assert(i < ALPHA_SIZE && "trie index must be within alpha size");
