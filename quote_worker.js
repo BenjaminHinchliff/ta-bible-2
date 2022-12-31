@@ -18,7 +18,7 @@ onmessage = ({ data: target }) => {
     const quote = Module.build_quote(index, target);
     postMessage(["quote", quote]);
   } catch (e) {
-    console.error(e);
-    postMessage(["status", "Failed to build quote."]);
+    const message = Module.get_exception_message(e);
+    postMessage(["status", `Failed to build quote: ${message}`]);
   }
 }
