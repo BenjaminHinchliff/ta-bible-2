@@ -3,7 +3,7 @@
 A small (not simple) program to generate arbitrary quotes from the bible (King James version) by abusing ellipses.
 
 ```bash
-❯ ./build/ta-bible-2 fish were created as the best living creatures
+❯ ./ta-bible-2 fish were created as the best living creatures
 Indexing bible...
 Building fragment tree...
 Scoring fragment tree...
@@ -23,9 +23,9 @@ but since it's just one source file it doesn't really need to be used.
 # Setup CMake build dir in release mode
 ❯ cmake -DCMAKE_BUILD_TYPE=Release -Bbuild
 # Make
-❯ make -C build
+❯ cd build && make
 # Run executable
-❯ ./build/ta-bible-2 fish were created as the best living creatures
+❯ ./ta-bible-2 fish were created as the best living creatures
 ```
 
 ## Usage
